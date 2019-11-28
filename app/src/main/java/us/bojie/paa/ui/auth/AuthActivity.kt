@@ -1,7 +1,8 @@
-package us.bojie.paa
+package us.bojie.paa.ui.auth
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import us.bojie.paa.R
 
 class AuthActivity : AppCompatActivity() {
 
