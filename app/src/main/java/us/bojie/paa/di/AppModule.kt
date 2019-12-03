@@ -5,17 +5,38 @@ import androidx.room.Room
 import com.bumptech.glide.Glide
 import com.bumptech.glide.RequestManager
 import com.bumptech.glide.request.RequestOptions
+import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import dagger.Module
 import dagger.Provides
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 import us.bojie.paa.R
 import us.bojie.paa.persistence.AccountPropertiesDao
 import us.bojie.paa.persistence.AppDatabase
 import us.bojie.paa.persistence.AppDatabase.Companion.DATABASE_NAME
 import us.bojie.paa.persistence.AuthTokenDao
+import us.bojie.paa.util.Constants
+import us.bojie.paa.util.LiveDataCallAdapterFactory
 import javax.inject.Singleton
 
 @Module
 class AppModule {
+
+    @Singleton
+    @Provides
+    fun provideGson() : Gson {
+        return GsonBuilder().excludeFieldsWithoutExposeAnnotation().create()
+    }
+
+    @Singleton
+    @Provides
+    fun provideRetrofitBuilder(gson: Gson) : Retrofit.Builder {
+        return Retrofit.Builder()
+            .baseUrl(Constants.BASE_URL)
+            .addCallAdapterFactory(LiveDataCallAdapterFactory())
+            .addConverterFactory(GsonConverterFactory.create(gson))
+    }
 
     @Singleton
     @Provides
