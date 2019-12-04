@@ -7,6 +7,7 @@ import us.bojie.paa.di.auth.AuthModule
 import us.bojie.paa.di.auth.AuthScope
 import us.bojie.paa.di.auth.AuthViewModelModule
 import us.bojie.paa.ui.auth.AuthActivity
+import us.bojie.paa.ui.main.MainActivity
 
 @Module
 abstract class ActivityBuildersModule {
@@ -16,5 +17,8 @@ abstract class ActivityBuildersModule {
         modules = [AuthModule::class, AuthFragmentBuildersModule::class, AuthViewModelModule::class]
     )
     abstract fun contributeAuthActivity(): AuthActivity
+
+    @ContributesAndroidInjector
+    abstract fun contributeMainActivity(): MainActivity
 
 }
