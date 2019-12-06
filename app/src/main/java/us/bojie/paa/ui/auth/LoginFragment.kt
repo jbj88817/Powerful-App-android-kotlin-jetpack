@@ -9,7 +9,7 @@ import android.view.ViewGroup
 import androidx.lifecycle.Observer
 import kotlinx.android.synthetic.main.fragment_login.*
 import us.bojie.paa.R
-import us.bojie.paa.model.AuthToken
+import us.bojie.paa.ui.auth.state.AuthStateEvent.LoginAttemptEvent
 import us.bojie.paa.ui.auth.state.LoginFields
 
 class LoginFragment : BaseAuthFragment() {
@@ -28,11 +28,7 @@ class LoginFragment : BaseAuthFragment() {
 
         subscribeObservers()
         login_button.setOnClickListener {
-            viewModel.setAuthToken(
-                AuthToken(
-                    1,"lskdjfklsjdfies"
-                )
-            )
+            login()
         }
     }
 
@@ -43,6 +39,15 @@ class LoginFragment : BaseAuthFragment() {
                 loginFields.login_password.let { input_password.setText(it) }
             }
         })
+    }
+
+    fun login() {
+        viewModel.setStateEvent(
+            LoginAttemptEvent(
+                input_email.text.toString(),
+                input_password.text.toString()
+            )
+        )
     }
 
     override fun onDestroyView() {

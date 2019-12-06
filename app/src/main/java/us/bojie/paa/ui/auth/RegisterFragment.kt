@@ -9,6 +9,7 @@ import android.view.ViewGroup
 import androidx.lifecycle.Observer
 import kotlinx.android.synthetic.main.fragment_register.*
 import us.bojie.paa.R
+import us.bojie.paa.ui.auth.state.AuthStateEvent.RegisterAttemptEvent
 import us.bojie.paa.ui.auth.state.RegistrationFields
 
 class RegisterFragment : BaseAuthFragment() {
@@ -24,6 +25,10 @@ class RegisterFragment : BaseAuthFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         Log.d(TAG, "RegisterFragment: ${viewModel.hashCode()}")
+
+        register_button.setOnClickListener {
+            register()
+        }
 
         subscribeObservers()
     }
@@ -41,6 +46,17 @@ class RegisterFragment : BaseAuthFragment() {
                 }
             }
         })
+    }
+
+    fun register() {
+        viewModel.setStateEvent(
+            RegisterAttemptEvent(
+                input_email.text.toString(),
+                input_username.text.toString(),
+                input_password.text.toString(),
+                input_password_confirm.text.toString()
+            )
+        )
     }
 
     override fun onDestroyView() {
