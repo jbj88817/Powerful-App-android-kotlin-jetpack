@@ -115,7 +115,7 @@ abstract class NetworkBoundResource<ResponseObject, ViewStateType>
         return job
     }
 
-    private fun onErrorReturn(message: String?, shouldUseDialog: Boolean, shouldUseToast: Boolean) {
+    fun onErrorReturn(message: String?, shouldUseDialog: Boolean, shouldUseToast: Boolean) {
         var msg = message
         var useDialog = shouldUseDialog
         var responseType: ResponseType = ResponseType.None()
@@ -144,7 +144,7 @@ abstract class NetworkBoundResource<ResponseObject, ViewStateType>
         )
     }
 
-    private fun onCompleteJob(dateState: DataState<ViewStateType>) {
+    fun onCompleteJob(dateState: DataState<ViewStateType>) {
         GlobalScope.launch(Main) {
             job.complete()
             setValue(dateState)

@@ -1,20 +1,25 @@
 package us.bojie.paa.repository.auth
 
+import android.util.Log
 import androidx.lifecycle.LiveData
-import androidx.lifecycle.switchMap
+import com.codingwithmitch.openapi.api.auth.network_responses.LoginResponse
+import com.codingwithmitch.openapi.api.auth.network_responses.RegistrationResponse
+import kotlinx.coroutines.Job
 import us.bojie.paa.api.auth.OpenApiAuthService
 import us.bojie.paa.model.AuthToken
 import us.bojie.paa.persistence.AccountPropertiesDao
 import us.bojie.paa.persistence.AuthTokenDao
+import us.bojie.paa.repository.NetworkBoundResource
 import us.bojie.paa.session.SessionManager
 import us.bojie.paa.ui.DataState
 import us.bojie.paa.ui.Response
 import us.bojie.paa.ui.ResponseType
 import us.bojie.paa.ui.auth.state.AuthViewState
-import us.bojie.paa.util.ApiEmptyResponse
-import us.bojie.paa.util.ApiErrorResponse
+import us.bojie.paa.ui.auth.state.LoginFields
+import us.bojie.paa.ui.auth.state.RegistrationFields
 import us.bojie.paa.util.ApiSuccessResponse
-import us.bojie.paa.util.ErrorHandling.Companion.ERROR_UNKNOWN
+import us.bojie.paa.util.ErrorHandling.Companion.GENERIC_AUTH_ERROR
+import us.bojie.paa.util.GenericApiResponse
 import javax.inject.Inject
 
 class AuthRepository
@@ -26,47 +31,71 @@ constructor(
     val sessionManager: SessionManager
 ) {
 
+    private var repositoryJob: Job? = null
+
     fun attemptLogin(email: String, password: String): LiveData<DataState<AuthViewState>> {
-        return openApiAuthService.login(email, password)
-            .switchMap { response ->
-                object : LiveData<DataState<AuthViewState>>() {
-                    override fun onActive() {
-                        super.onActive()
-                        when (response) {
-                            is ApiSuccessResponse -> {
-                                value = DataState.data(
-                                    data = AuthViewState(
-                                        authToken = AuthToken(
-                                            response.body.pk,
-                                            response.body.token
-                                        )
-                                    ),
-                                    response = null
-                                )
-                            }
+        val loginFieldError = LoginFields(email, password).isValidForLogin()
+        if (loginFieldError != LoginFields.LoginError.none()) {
+            return returnErrorResponse(loginFieldError, ResponseType.Dialog())
+        }
 
-                            is ApiErrorResponse -> {
-                                value = DataState.error(
-                                    response = Response(
-                                        message = response.errorMessage,
-                                        responseType = ResponseType.Dialog()
-                                    )
-                                )
-                            }
+        return object : NetworkBoundResource<LoginResponse, AuthViewState>(
+            sessionManager.isConnectedToTheInternet()
+        ) {
+            override suspend fun handleApiSuccessResponse(response: ApiSuccessResponse<LoginResponse>) {
+                Log.d("AuthRepository", "handleApiSuccessResponse (line 45): $response")
 
-                            is ApiEmptyResponse -> {
-                                value = DataState.error(
-                                    response = Response(
-                                        message = ERROR_UNKNOWN,
-                                        responseType = ResponseType.Dialog()
-                                    )
-                                )
-                            }
-                        }
-                    }
+                // Incorrect login credentials counts as a 200 response from server
+                if (GENERIC_AUTH_ERROR == response.body.response) {
+                    return onErrorReturn(
+                        response.body.errorMessage,
+                        shouldUseDialog = true,
+                        shouldUseToast = false
+                    )
                 }
+
+                onCompleteJob(
+                    DataState.data(
+                        data = AuthViewState(
+                            authToken = AuthToken(response.body.pk, response.body.token)
+                        )
+                    )
+                )
             }
+
+            override fun createCall(): LiveData<GenericApiResponse<LoginResponse>> {
+                return openApiAuthService.login(email, password)
+            }
+
+            override fun setJob(job: Job) {
+                repositoryJob?.cancel()
+                repositoryJob = job
+            }
+        }.asLiveDate()
     }
+
+    private fun returnErrorResponse(
+        errorMessage: String,
+        responseType: ResponseType
+    ): LiveData<DataState<AuthViewState>> {
+        return object : LiveData<DataState<AuthViewState>>() {
+            override fun onActive() {
+                super.onActive()
+                value = DataState.error(
+                    Response(
+                        errorMessage,
+                        responseType
+                    )
+                )
+            }
+        }
+    }
+
+    fun cancelActiveJobs() {
+        Log.d("AuthRepository", "cancelActiveJobs (line 97): ")
+        repositoryJob?.cancel()
+    }
+
 
     fun attemptRegistration(
         email: String,
@@ -74,39 +103,42 @@ constructor(
         password: String,
         confirmPassword: String
     ): LiveData<DataState<AuthViewState>> {
-        return openApiAuthService.register(email, username, password, confirmPassword)
-            .switchMap { response ->
-                object : LiveData<DataState<AuthViewState>>() {
-                    override fun onActive() {
-                        super.onActive()
-                        when (response) {
-                            is ApiSuccessResponse -> {
-                                value = DataState.data(
-                                    AuthViewState(
-                                        authToken = AuthToken(response.body.pk, response.body.token)
-                                    ),
-                                    response = null
-                                )
-                            }
-                            is ApiErrorResponse -> {
-                                value = DataState.error(
-                                    Response(
-                                        message = response.errorMessage,
-                                        responseType = ResponseType.Dialog()
-                                    )
-                                )
-                            }
-                            is ApiEmptyResponse -> {
-                                value = DataState.error(
-                                    Response(
-                                        message = ERROR_UNKNOWN,
-                                        responseType = ResponseType.Dialog()
-                                    )
-                                )
-                            }
-                        }
-                    }
+        val registrationFieldsErrors =
+            RegistrationFields(email, username, password, confirmPassword).isValidForRegistration()
+        if (registrationFieldsErrors != RegistrationFields.RegistrationError.none()) {
+            return returnErrorResponse(registrationFieldsErrors, ResponseType.Dialog())
+        }
+
+        return object : NetworkBoundResource<RegistrationResponse, AuthViewState>(
+            sessionManager.isConnectedToTheInternet()
+        ) {
+            override suspend fun handleApiSuccessResponse(response: ApiSuccessResponse<RegistrationResponse>) {
+                Log.d("AuthRepository", "handleApiSuccessResponse (line 120): $response")
+                if (GENERIC_AUTH_ERROR == response.body.response) {
+                    return onErrorReturn(
+                        response.body.errorMessage,
+                        shouldUseDialog = true,
+                        shouldUseToast = false
+                    )
                 }
+
+                onCompleteJob(
+                    DataState.data(
+                        data = AuthViewState(
+                            authToken = AuthToken(response.body.pk, response.body.token)
+                        )
+                    )
+                )
             }
+
+            override fun createCall(): LiveData<GenericApiResponse<RegistrationResponse>> {
+                return openApiAuthService.register(email, username, password, confirmPassword)
+            }
+
+            override fun setJob(job: Job) {
+                repositoryJob?.cancel()
+                repositoryJob = job
+            }
+        }.asLiveDate()
     }
 }
