@@ -1,11 +1,13 @@
 package us.bojie.paa.repository.auth
 
+import android.content.SharedPreferences
 import android.util.Log
 import androidx.lifecycle.LiveData
 import com.codingwithmitch.openapi.api.auth.network_responses.LoginResponse
 import com.codingwithmitch.openapi.api.auth.network_responses.RegistrationResponse
 import kotlinx.coroutines.Job
 import us.bojie.paa.api.auth.OpenApiAuthService
+import us.bojie.paa.model.AccountProperties
 import us.bojie.paa.model.AuthToken
 import us.bojie.paa.persistence.AccountPropertiesDao
 import us.bojie.paa.persistence.AuthTokenDao
@@ -18,8 +20,10 @@ import us.bojie.paa.ui.auth.state.AuthViewState
 import us.bojie.paa.ui.auth.state.LoginFields
 import us.bojie.paa.ui.auth.state.RegistrationFields
 import us.bojie.paa.util.ApiSuccessResponse
+import us.bojie.paa.util.ErrorHandling.Companion.ERROR_SAVE_AUTH_TOKEN
 import us.bojie.paa.util.ErrorHandling.Companion.GENERIC_AUTH_ERROR
 import us.bojie.paa.util.GenericApiResponse
+import us.bojie.paa.util.PreferenceKeys
 import javax.inject.Inject
 
 class AuthRepository
@@ -28,7 +32,9 @@ constructor(
     val authTokenDao: AuthTokenDao,
     val accountPropertiesDao: AccountPropertiesDao,
     val openApiAuthService: OpenApiAuthService,
-    val sessionManager: SessionManager
+    val sessionManager: SessionManager,
+    val sharedPreferences: SharedPreferences,
+    val sharedPrefsEditor: SharedPreferences.Editor
 ) {
 
     private var repositoryJob: Job? = null
@@ -54,6 +60,34 @@ constructor(
                     )
                 }
 
+                // Don't care about result here. Just insert if it doesn't exist b/c of foreign key relationship
+                // with AuthToken
+                accountPropertiesDao.insertOrIgnore(
+                    AccountProperties(
+                        response.body.pk,
+                        response.body.email,
+                        ""
+                    )
+                )
+
+                // will return -1 if failure
+                val result = authTokenDao.insert(
+                    AuthToken(
+                        response.body.pk,
+                        response.body.token
+                    )
+                )
+
+                if (result < 0) {
+                    return onCompleteJob(
+                        DataState.error(
+                            Response(ERROR_SAVE_AUTH_TOKEN, ResponseType.Dialog())
+                        )
+                    )
+                }
+
+                saveAuthenticatedUserToPrefs(email)
+
                 onCompleteJob(
                     DataState.data(
                         data = AuthViewState(
@@ -72,6 +106,13 @@ constructor(
                 repositoryJob = job
             }
         }.asLiveDate()
+    }
+
+    fun saveAuthenticatedUserToPrefs(email: String) {
+        sharedPrefsEditor.apply {
+            putString(PreferenceKeys.PREVIOUS_AUTH_USER, email)
+            apply()
+        }
     }
 
     private fun returnErrorResponse(
@@ -121,6 +162,34 @@ constructor(
                         shouldUseToast = false
                     )
                 }
+
+                // Don't care about result here. Just insert if it doesn't exist b/c of foreign key relationship
+                // with AuthToken
+                accountPropertiesDao.insertOrIgnore(
+                    AccountProperties(
+                        response.body.pk,
+                        response.body.email,
+                        ""
+                    )
+                )
+
+                // will return -1 if failure
+                val result = authTokenDao.insert(
+                    AuthToken(
+                        response.body.pk,
+                        response.body.token
+                    )
+                )
+
+                if (result < 0) {
+                    return onCompleteJob(
+                        DataState.error(
+                            Response(ERROR_SAVE_AUTH_TOKEN, ResponseType.Dialog())
+                        )
+                    )
+                }
+
+                saveAuthenticatedUserToPrefs(email)
 
                 onCompleteJob(
                     DataState.data(

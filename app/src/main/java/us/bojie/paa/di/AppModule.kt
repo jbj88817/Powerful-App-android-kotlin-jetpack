@@ -1,6 +1,8 @@
 package us.bojie.paa.di
 
 import android.app.Application
+import android.content.Context
+import android.content.SharedPreferences
 import androidx.room.Room
 import com.bumptech.glide.Glide
 import com.bumptech.glide.RequestManager
@@ -18,10 +20,23 @@ import us.bojie.paa.persistence.AppDatabase.Companion.DATABASE_NAME
 import us.bojie.paa.persistence.AuthTokenDao
 import us.bojie.paa.util.Constants
 import us.bojie.paa.util.LiveDataCallAdapterFactory
+import us.bojie.paa.util.PreferenceKeys
 import javax.inject.Singleton
 
 @Module
 class AppModule {
+
+    @Singleton
+    @Provides
+    fun providesSharedPreferences(application: Application): SharedPreferences {
+        return application.getSharedPreferences(PreferenceKeys.APP_PREFERENCES, Context.MODE_PRIVATE)
+    }
+
+    @Singleton
+    @Provides
+    fun providesSharedPrefsEditor(sharedPreferences: SharedPreferences): SharedPreferences.Editor {
+        return sharedPreferences.edit()
+    }
 
     @Singleton
     @Provides

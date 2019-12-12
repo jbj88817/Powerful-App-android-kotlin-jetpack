@@ -1,5 +1,9 @@
 package us.bojie.paa.util
 
+import android.util.Log
+import org.json.JSONException
+import org.json.JSONObject
+
 class ErrorHandling {
 
     companion object {
@@ -30,5 +34,24 @@ class ErrorHandling {
             }
         }
 
+        fun parseDetailJsonResponse(rawJson: String?): String {
+            Log.d(TAG, "parseDetailJsonResponse: ${rawJson}")
+            try {
+                if (!rawJson.isNullOrBlank()) {
+                    if (rawJson.equals(ERROR_CHECK_NETWORK_CONNECTION)) {
+                        return PAGINATION_DONE_ERROR
+                    }
+                    return JSONObject(rawJson).get("detail") as String
+                }
+            } catch (e: JSONException) {
+                Log.e(TAG, "parseDetailJsonResponse: ${e.message}")
+            }
+            return ""
+        }
+
+        fun isPaginationDone(errorResponse: String?): Boolean {
+            // if error response = '{"detail":"Invalid page."}' then pagination is finished
+            return PAGINATION_DONE_ERROR.equals(parseDetailJsonResponse(errorResponse))
+        }
     }
 }
