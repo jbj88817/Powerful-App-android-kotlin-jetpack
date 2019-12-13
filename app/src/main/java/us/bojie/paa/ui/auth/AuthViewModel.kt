@@ -10,7 +10,6 @@ import us.bojie.paa.ui.auth.state.AuthStateEvent.*
 import us.bojie.paa.ui.auth.state.AuthViewState
 import us.bojie.paa.ui.auth.state.LoginFields
 import us.bojie.paa.ui.auth.state.RegistrationFields
-import us.bojie.paa.util.AbsentLiveData
 import javax.inject.Inject
 
 class AuthViewModel
@@ -37,7 +36,7 @@ constructor(
             }
 
             is CheckPreviousAuthEvent -> {
-                AbsentLiveData.create()
+                return authRepository.checkPreviousAuthUser()
             }
         }
     }

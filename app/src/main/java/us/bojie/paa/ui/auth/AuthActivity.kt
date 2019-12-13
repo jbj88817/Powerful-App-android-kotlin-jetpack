@@ -12,6 +12,7 @@ import androidx.navigation.findNavController
 import kotlinx.android.synthetic.main.activity_auth.*
 import us.bojie.paa.R
 import us.bojie.paa.ui.BaseActivity
+import us.bojie.paa.ui.auth.state.AuthStateEvent
 import us.bojie.paa.ui.main.MainActivity
 import us.bojie.paa.viewmodel.ViewModelProviderFactory
 import javax.inject.Inject
@@ -31,6 +32,7 @@ class AuthActivity : BaseActivity(),
         viewModel = ViewModelProvider(this, providerFactory).get(AuthViewModel::class.java)
         findNavController(R.id.auth_nav_host_fragment).addOnDestinationChangedListener(this)
         subscribeObservers()
+        checkPreviousAuthUser()
     }
 
     private fun subscribeObservers() {
@@ -82,5 +84,9 @@ class AuthActivity : BaseActivity(),
         } else {
             progress_bar.visibility = View.GONE
         }
+    }
+
+    private fun checkPreviousAuthUser() {
+        viewModel.setStateEvent(AuthStateEvent.CheckPreviousAuthEvent)
     }
 }

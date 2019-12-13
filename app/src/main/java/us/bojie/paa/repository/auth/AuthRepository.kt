@@ -19,11 +19,13 @@ import us.bojie.paa.ui.ResponseType
 import us.bojie.paa.ui.auth.state.AuthViewState
 import us.bojie.paa.ui.auth.state.LoginFields
 import us.bojie.paa.ui.auth.state.RegistrationFields
+import us.bojie.paa.util.AbsentLiveData
 import us.bojie.paa.util.ApiSuccessResponse
 import us.bojie.paa.util.ErrorHandling.Companion.ERROR_SAVE_AUTH_TOKEN
 import us.bojie.paa.util.ErrorHandling.Companion.GENERIC_AUTH_ERROR
 import us.bojie.paa.util.GenericApiResponse
 import us.bojie.paa.util.PreferenceKeys
+import us.bojie.paa.util.SuccessHandling.Companion.RESPONSE_CHECK_PREVIOUS_AUTH_USER_DONE
 import javax.inject.Inject
 
 class AuthRepository
@@ -46,7 +48,8 @@ constructor(
         }
 
         return object : NetworkBoundResource<LoginResponse, AuthViewState>(
-            sessionManager.isConnectedToTheInternet()
+            sessionManager.isConnectedToTheInternet(),
+            true
         ) {
             override suspend fun handleApiSuccessResponse(response: ApiSuccessResponse<LoginResponse>) {
                 Log.d("AuthRepository", "handleApiSuccessResponse (line 45): $response")
@@ -105,7 +108,90 @@ constructor(
                 repositoryJob?.cancel()
                 repositoryJob = job
             }
+
+            // N/A
+            override suspend fun createCacheRequestAndReturn() {
+
+            }
         }.asLiveDate()
+    }
+
+    fun checkPreviousAuthUser(): LiveData<DataState<AuthViewState>> {
+        val previousAuthUserEmail: String? =
+            sharedPreferences.getString(PreferenceKeys.PREVIOUS_AUTH_USER, null)
+        if (previousAuthUserEmail.isNullOrBlank()) {
+            Log.d("AuthRepository", "checkPreviousAuthUser (line 121): ")
+            return returnNoTokenFound()
+        }
+
+        return object : NetworkBoundResource<Void, AuthViewState>(
+            sessionManager.isConnectedToTheInternet(),
+            false
+        ) {
+            override suspend fun createCacheRequestAndReturn() {
+                accountPropertiesDao.searchByEmail(previousAuthUserEmail).let { accountProperties ->
+                    Log.d(
+                        "AuthRepository",
+                        "createCacheRequestAndReturn (line 133): searching for token $accountProperties"
+                    )
+
+                    accountProperties?.let {
+                        if (it.pk > 1) {
+                            authTokenDao.searchByPk(it.pk).let { authToken ->
+                                if (authToken != null) {
+                                    onCompleteJob(
+                                        DataState.data(
+                                            data = AuthViewState(
+                                                authToken = authToken
+                                            )
+                                        )
+                                    )
+                                    return
+                                }
+                            }
+                        }
+
+                    }
+                    Log.d(
+                        "AuthRepository",
+                        "createCacheRequestAndReturn (line 155): AuthToken not found..."
+                    )
+                    onCompleteJob(
+                        DataState.data(
+                            response = Response(
+                                RESPONSE_CHECK_PREVIOUS_AUTH_USER_DONE,
+                                ResponseType.None()
+                            )
+                        )
+                    )
+                }
+            }
+
+            override suspend fun handleApiSuccessResponse(response: ApiSuccessResponse<Void>) {
+            }
+
+
+            override fun createCall(): LiveData<GenericApiResponse<Void>> {
+                return AbsentLiveData.create()
+            }
+
+            override fun setJob(job: Job) {
+                repositoryJob?.cancel()
+                repositoryJob = job
+            }
+        }.asLiveDate()
+    }
+
+    private fun returnNoTokenFound(): LiveData<DataState<AuthViewState>> {
+        return object : LiveData<DataState<AuthViewState>>() {
+            override fun onActive() {
+                super.onActive()
+                value = DataState.data(
+                    data = null,
+                    response = Response(RESPONSE_CHECK_PREVIOUS_AUTH_USER_DONE, ResponseType.None())
+                )
+            }
+        }
     }
 
     fun saveAuthenticatedUserToPrefs(email: String) {
@@ -151,7 +237,8 @@ constructor(
         }
 
         return object : NetworkBoundResource<RegistrationResponse, AuthViewState>(
-            sessionManager.isConnectedToTheInternet()
+            sessionManager.isConnectedToTheInternet(),
+            true
         ) {
             override suspend fun handleApiSuccessResponse(response: ApiSuccessResponse<RegistrationResponse>) {
                 Log.d("AuthRepository", "handleApiSuccessResponse (line 120): $response")
@@ -208,6 +295,12 @@ constructor(
                 repositoryJob?.cancel()
                 repositoryJob = job
             }
+
+            // N/A
+            override suspend fun createCacheRequestAndReturn() {
+
+            }
+
         }.asLiveDate()
     }
 }
