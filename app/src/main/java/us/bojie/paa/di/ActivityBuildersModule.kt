@@ -6,6 +6,10 @@ import us.bojie.paa.di.auth.AuthFragmentBuildersModule
 import us.bojie.paa.di.auth.AuthModule
 import us.bojie.paa.di.auth.AuthScope
 import us.bojie.paa.di.auth.AuthViewModelModule
+import us.bojie.paa.di.main.MainFragmentBuildersModule
+import us.bojie.paa.di.main.MainModule
+import us.bojie.paa.di.main.MainScope
+import us.bojie.paa.di.main.MainViewModelModule
 import us.bojie.paa.ui.auth.AuthActivity
 import us.bojie.paa.ui.main.MainActivity
 
@@ -18,7 +22,9 @@ abstract class ActivityBuildersModule {
     )
     abstract fun contributeAuthActivity(): AuthActivity
 
-    @ContributesAndroidInjector
+    @MainScope
+    @ContributesAndroidInjector(
+        modules = [MainModule::class, MainFragmentBuildersModule::class, MainViewModelModule::class]
+    )
     abstract fun contributeMainActivity(): MainActivity
-
 }
